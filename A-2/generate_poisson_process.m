@@ -1,3 +1,4 @@
+clear;
 r0 = 30;
 rmax = 60;
 smax = pi /2;
@@ -37,7 +38,7 @@ for lambda_indes = 1:size(lambda_list,2)
     cell_holder(lambda_indes) = mat2cell(spike_train_container);
 end
 
-for i=1:7
+for i=1:8
     spike_train_container = cell_holder{i};
     figure;
     for j=1:100
@@ -54,4 +55,6 @@ for i=1:7
         end
     end
 end
+
+save ('homogenous_poisson.mat');
 
