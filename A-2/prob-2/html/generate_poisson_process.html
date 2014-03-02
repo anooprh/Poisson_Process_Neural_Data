@@ -1,0 +1,1821 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>generate_poisson_process</title><meta name="generator" content="MATLAB 8.1"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2014-02-27"><meta name="DC.source" content="generate_poisson_process.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, tt, code { font-size:12px; }
+pre { margin:0px 0px 20px; }
+pre.error { color:red; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><pre class="codeinput">clear;
+<span class="comment">% Initialize Parameters</span>
+r0 = 30;
+rmax = 60;
+smax = pi /2;
+klist = 0:7;
+number_of_trials = 100;
+slist = klist * pi /4;
+
+lambda_list = r0 + (rmax - r0) * cos(slist - smax);
+
+<span class="comment">%Cell for holding spike trains of 8 angles for 100 trials</span>
+cell_holder = cell(size(lambda_list,2),1);
+<span class="comment">% Size of each step</span>
+dt = 0.001;
+<span class="comment">% Window length in seconds</span>
+window_length = 1;
+<span class="comment">% Time chain</span>
+time = 0.0000:dt:window_length;
+
+<span class="keyword">for</span> lambda_indes = 1:size(lambda_list,2)
+
+    lambda = lambda_list(lambda_indes);
+
+    <span class="comment">% Container For Holding The Results For 100 Spike Trains for a given</span>
+    <span class="comment">% angle</span>
+    spike_train_container = cell(100,1);
+
+    <span class="keyword">for</span> k = 1:number_of_trials
+        spike_train = zeros(1, size(time, 2));
+        <span class="comment">% Poissrnd, rand - Using method 2 discussed in class</span>
+        <span class="comment">% First Generate N, the number Of Spikes in Time T</span>
+        number_of_spikes = poissrnd(lambda * window_length);
+        <span class="comment">% Generate N random values between 0 and T and save it in array</span>
+        time_of_spikes = rand(1, number_of_spikes) * window_length;
+        time_of_spikes = floor(time_of_spikes * number_of_trials)/number_of_trials;
+
+        <span class="keyword">for</span> i=time_of_spikes
+            <span class="keyword">if</span> i ~= 0
+                spike_train(floor(i * (window_length/dt))) = 1;
+            <span class="keyword">end</span>
+        <span class="keyword">end</span>
+        <span class="comment">% Save the spike the container</span>
+        spike_train_container(k) = mat2cell(spike_train);
+    <span class="keyword">end</span>
+    <span class="comment">% Save the spike the container</span>
+    cell_holder(lambda_indes) = mat2cell(spike_train_container);
+<span class="keyword">end</span>
+<span class="keyword">for</span> i=1:size(lambda_list,2)
+    spike_train_container = cell_holder{i};
+    figure;
+    <span class="keyword">for</span> j=1:number_of_trials
+        rand_five = randi([1,number_of_trials], 1, 5);
+        [st1, st2, st3, st4, st5]  = spike_train_container{rand_five};
+        st = [st1; st2; st3; st4; st5];
+        <span class="keyword">for</span> k=1:5
+            subplot(5,1,k);
+            stem(st(k,:));
+            xlabel(<span class="string">'Time (ms)'</span>);
+            ylabel(<span class="string">'Spikes'</span>);
+            title_str = sprintf(<span class="string">'K = %d'</span>, klist(i));
+            title(title_str);
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+save (<span class="string">'homogenous_poisson.mat'</span>);
+</pre><pre class="codeoutput">Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+Warning: Single input behavior is obsolete and will be removed in a future
+release of MATLAB. Use C={X} instead. 
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2013a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+clear;
+% Initialize Parameters
+r0 = 30;
+rmax = 60;
+smax = pi /2;
+klist = 0:7;
+number_of_trials = 100;
+slist = klist * pi /4;
+
+lambda_list = r0 + (rmax - r0) * cos(slist - smax);
+
+%Cell for holding spike trains of 8 angles for 100 trials
+cell_holder = cell(size(lambda_list,2),1);
+% Size of each step
+dt = 0.001;
+% Window length in seconds
+window_length = 1;
+% Time chain
+time = 0.0000:dt:window_length;
+
+for lambda_indes = 1:size(lambda_list,2)
+    
+    lambda = lambda_list(lambda_indes);
+    
+    % Container For Holding The Results For 100 Spike Trains for a given
+    % angle
+    spike_train_container = cell(100,1);
+    
+    for k = 1:number_of_trials
+        spike_train = zeros(1, size(time, 2));
+        % Poissrnd, rand - Using method 2 discussed in class
+        % First Generate N, the number Of Spikes in Time T
+        number_of_spikes = poissrnd(lambda * window_length);
+        % Generate N random values between 0 and T and save it in array
+        time_of_spikes = rand(1, number_of_spikes) * window_length;
+        time_of_spikes = floor(time_of_spikes * number_of_trials)/number_of_trials;
+
+        for i=time_of_spikes
+            if i ~= 0
+                spike_train(floor(i * (window_length/dt))) = 1;
+            end
+        end
+        % Save the spike the container
+        spike_train_container(k) = mat2cell(spike_train);
+    end
+    % Save the spike the container
+    cell_holder(lambda_indes) = mat2cell(spike_train_container);
+end
+for i=1:size(lambda_list,2)
+    spike_train_container = cell_holder{i};
+    figure;
+    for j=1:number_of_trials
+        rand_five = randi([1,number_of_trials], 1, 5);
+        [st1, st2, st3, st4, st5]  = spike_train_container{rand_five};
+        st = [st1; st2; st3; st4; st5];
+        for k=1:5
+            subplot(5,1,k);
+            stem(st(k,:));
+            xlabel('Time (ms)');
+            ylabel('Spikes');
+            title_str = sprintf('K = %d', klist(i));
+            title(title_str);
+        end
+    end
+end
+save ('homogenous_poisson.mat');
+
+
+##### SOURCE END #####
+--></body></html>

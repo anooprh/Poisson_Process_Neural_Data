@@ -16,9 +16,10 @@ for i=1:8
     counts = histc(spike_count_in_train,count_frequencies);
     plot(counts/sum(counts));
     hold on;
-    plot(poisspdf(1:100, lambda_list(i)), 'r');
+    plot(poisspdf(1:10000, lambda_list(i)), '--rx');
     xlabel('Count Frequency');
     ylabel('Number Of Observations');
+    axis([0,100,0,0.25]);
     str = sprintf('Count Distribution for %d*pi/4', i-1);
     title(str);
     legend('Actual Dist', 'Poisson Dist');

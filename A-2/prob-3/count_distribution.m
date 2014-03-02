@@ -12,8 +12,9 @@ end
 count_frequencies = unique(spike_count_in_train);
 counts = histc(spike_count_in_train,count_frequencies);
 plot(counts/sum(counts));
-hold on;
+hold on
 plot(poisspdf(1:size(counts,2),mean(counts)), 'r--');
+hold on
 xlabel('Count Frequency');
 ylabel('Number Of Observations');
 str = sprintf('Count Distribution');

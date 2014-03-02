@@ -16,7 +16,7 @@ for i=1:8
     m = mean(counts);
     variance = var(counts);
     plot(variance, m, 'dr');
-    axis([0,30,0,30]);
+    axis([0,50,0,50]);
     hold on;
     plot(0:100, 0:100);
     xlabel('Mean');

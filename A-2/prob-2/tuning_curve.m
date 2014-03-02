@@ -19,7 +19,7 @@ end
 plot(klist+1, lambda_list,'g')
 hold on
 xlabel('k');
-legend('Reaching Angle = k * pi /4');
+legend('Reaching Angle = k-1 * pi /4');
 ylabel('Firing Rates');
 title_str = sprintf('Tuning Curve');
 title(title_str);

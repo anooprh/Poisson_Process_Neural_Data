@@ -1,6 +1,6 @@
 clear;
 
-load 'homogenous_poisson.mat';
+load 'non_homogenous_poisson.mat';
 
 for i=1:8
     spike_train_container = cell_holder{i};
